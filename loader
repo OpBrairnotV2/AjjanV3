@@ -1,0 +1,91 @@
+-- =====================================================
+-- NEXIO TRADE + BANNER REMOVER (Combined)
+-- =====================================================
+
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local deletedBanners = {}
+
+local function removeBanner(obj)
+    if obj and obj.Parent and obj.Name == "PremiumDiscordBanner" and not deletedBanners[obj] then
+        pcall(function()
+            obj:Destroy()
+            deletedBanners[obj] = true
+        end)
+        return true
+    end
+    return false
+end
+
+local function scanAndRemove(parent)
+    if not parent then return end
+    removeBanner(parent)
+    for _, child in ipairs(parent:GetChildren()) do
+        pcall(function()
+            scanAndRemove(child)
+        end)
+    end
+end
+
+local function scanAll()
+    pcall(function()
+        for _, gui in ipairs(CoreGui:GetChildren()) do
+            scanAndRemove(gui)
+        end
+        local playerGui = player:FindFirstChild("PlayerGui")
+        if playerGui then
+            for _, gui in ipairs(playerGui:GetChildren()) do
+                scanAndRemove(gui)
+            end
+        end
+    end)
+end
+
+-- Start banner remover in background
+task.spawn(function()
+    scanAll()
+
+    CoreGui.ChildAdded:Connect(function(child)
+        task.wait(0.1)
+        pcall(function()
+            scanAndRemove(child)
+        end)
+    end)
+
+    local function monitorPlayerGui()
+        local playerGui = player:WaitForChild("PlayerGui", 5)
+        if playerGui then
+            playerGui.ChildAdded:Connect(function(child)
+                task.wait(0.1)
+                pcall(function()
+                    scanAndRemove(child)
+                end)
+            end)
+        end
+    end
+
+    if player:FindFirstChild("PlayerGui") then
+        monitorPlayerGui()
+    else
+        player.ChildAdded:Connect(function(child)
+            if child.Name == "PlayerGui" then
+                monitorPlayerGui()
+            end
+        end)
+    end
+
+    while true do
+        task.wait(3)
+        pcall(function()
+            scanAll()
+        end)
+    end
+end)
+
+-- Load Nexio Trade AFTER banner remover starts
+task.spawn(function()
+    task.wait(1) -- small delay so banner remover is already active
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/Sabmodz/visual2/refs/heads/main/loader))()
+end)
